@@ -1,0 +1,13 @@
+---
+# defaults file for roles/proxmox_api
+proxmox_api_host: 192.168.56.103
+proxmox_root_user: root@pam
+proxmox_root_password: KurkaWodna1
+
+proxmox_api_user: "ansible"
+proxmox_api_realm: "pve"
+
+proxmox_api_token_id: "automation"
+
+proxmox_acl_path: "/"
+proxmox_role: "PVEAdmin"
