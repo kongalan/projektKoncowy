@@ -2,64 +2,77 @@ locals {
   nodes = {
     k8s-master = {
       vmid = 201
-      ip   = "192.168.56.105"
+      ip   = "192.168.137.10"
     }
 
     k8s-worker1 = {
       vmid = 202
-      ip   = "192.168.56.106"
+      ip   = "192.168.137.11"
     }
 
     k8s-worker2 = {
       vmid = 203
-      ip   = "192.168.56.107"
+      ip   = "192.168.137.12"
     }
   }
 }
 
-resource "proxmox_vm_qemu" "k8s" {
-
+resource "proxmox_virtual_environment_vm" "k8s" {
   for_each = local.nodes
 
-  name        = each.key
-  target_node = "pve"
-  vmid        = each.value.vmid
+  name      = each.key
+  node_name = "proxmox"
+  vm_id     = each.value.vmid
 
-  clone       = "ubuntu2404-template"
-  full_clone  = true
+  clone {
+    vm_id = 9000
+    full  = true
+  }
 
-  agent       = 1
-  os_type     = "cloud-init"
+  started = true
 
-  cores       = 2
-  sockets     = 1
-  cpu         = "host"
+  cpu {
+    cores   = 2
+    sockets = 1
+    type    = "host"
+  }
 
-  memory      = 2048
+  memory {
+    dedicated = 2048
+  }
 
-  scsihw      = "virtio-scsi-single"
+  agent {
+    enabled = false
+  }
 
-  disks {
-  scsi {
-    scsi0 {
-      disk {
-        size    = 30
-        storage = "local-lvm"
-            }
-        }
+  disk {
+    datastore_id = "local-lvm"
+    interface    = "scsi0"
+    size         = 30
+    iothread     = true
+  }
+
+  initialization {
+    ip_config {
+      ipv4 {
+        address = "${each.value.ip}/24"
+        gateway = "192.168.137.1"
+      }
+    }
+
+    user_account {
+      username = "ubuntu"
+      keys     = [trimspace(var.ssh_key)]
+    }
+
+    dns {
+      servers = ["1.1.1.1", "8.8.8.8"]
     }
   }
 
-  network {    
-    model  = "virtio"
+
+  network_device {
     bridge = "vmbr0"
+    model  = "virtio"
   }
-
-  ipconfig0 = "ip=${each.value.ip}/24,gw=192.168.56.1"
-
-  ciuser  = "ubuntu"
-
-  sshkeys = var.ssh_key
-
-  nameserver = "1.1.1.1"
 }

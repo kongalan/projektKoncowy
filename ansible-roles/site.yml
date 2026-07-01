@@ -1,0 +1,20 @@
+---
+- name: Prepare all Kubernetes nodes
+  hosts: k8s
+  become: true
+  roles:
+    - common
+    - containerd
+    - kubernetes
+
+- name: Init control-plane
+  hosts: master
+  become: true
+  roles:
+    - master
+
+- name: Join workers
+  hosts: workers
+  become: true
+  roles:
+    - worker

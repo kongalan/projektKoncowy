@@ -1,0 +1,10 @@
+---
+# tasks file for roles/worker
+- name: Check if node already joined
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Join worker to cluster
+  command: "{{ hostvars[groups['master'][0]].kubeadm_join_command }}"
+  when: not kubelet_conf.stat.exists
