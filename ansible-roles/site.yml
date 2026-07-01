@@ -6,12 +6,20 @@
     - common
     - containerd
     - kubernetes
+   
 
 - name: Init control-plane
   hosts: master
   become: true
   roles:
     - master
+
+
+- name: Install Calico CNI
+  hosts: master
+  become: true
+  roles:
+    - calico
 
 - name: Join workers
   hosts: workers

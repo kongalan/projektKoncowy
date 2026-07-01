@@ -1,0 +1,28 @@
+---
+# tasks file for ./roles/calico
+- name: Wait for Kubernetes API
+  command: kubectl get nodes
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubectl_nodes
+  retries: 20
+  delay: 10
+  until: kubectl_nodes.rc == 0
+  changed_when: false
+
+- name: Install Calico CNI
+  command: kubectl apply -f {{ calico_manifest_url }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: calico_apply
+  changed_when: "'created' in calico_apply.stdout or 'configured' in calico_apply.stdout"
+
+- name: Wait for Calico pods
+  command: kubectl -n kube-system get pods -l k8s-app=calico-node
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: calico_pods
+  retries: 30
+  delay: 10
+  until: calico_pods.rc == 0
+  changed_when: false
