@@ -21,6 +21,12 @@
   roles:
     - calico
 
+- name: Install Ingress-nginx
+  hosts: master
+  become: true
+  roles:
+    - ingress-nginx
+
 - name: Join workers
   hosts: workers
   become: true

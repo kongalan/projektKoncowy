@@ -1,0 +1,28 @@
+---
+# tasks file for ingress-nginx
+
+- name: Install Python Kubernetes library
+  ansible.builtin.apt:
+    name: python3-kubernetes
+    state: present
+    update_cache: yes
+    
+- name: Install ingress-nginx
+  kubernetes.core.k8s:
+    state: present
+    src: https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+    kubeconfig: /etc/kubernetes/admin.conf
+
+- name: Wait for ingress-nginx controller
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: ingress-nginx
+    kubeconfig: /etc/kubernetes/admin.conf
+    label_selectors:
+      - app.kubernetes.io/component=controller
+  register: ingress_pods
+  retries: 20
+  delay: 15
+  until: >
+    ingress_pods.resources | length > 0 and
+    ingress_pods.resources[0].status.phase == "Running"
