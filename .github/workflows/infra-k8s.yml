@@ -83,12 +83,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Start ssh-agent
-        run: |
-          eval "$(ssh-agent -s)"
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/id_rsa
-          chmod 600 /tmp/id_rsa
-          ssh-add /tmp/id_rsa
+      #- name: Start ssh-agent
+       # run: |
+        #  eval "$(ssh-agent -s)"
+         #chmod 600 /tmp/id_rsa
+          #ssh-add /tmp/id_rsa
 
       - name: Test Ansible cnnection
         run: |
