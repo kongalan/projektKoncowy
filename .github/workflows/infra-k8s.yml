@@ -15,7 +15,7 @@ on:
 
 jobs:
   terraform:
-    runs-on: self-hosted
+    runs-on: [self-hosted, terraform-runner]
 
     defaults:
       run:
@@ -23,13 +23,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Check Terraform version
-        run: terraform version
+        uses: actions/checkout@v4 
 
 
       - name: Create terraform.tfvars
