@@ -77,7 +77,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ansible
+        working-directory: ansible-roles
 
     steps:
       - name: Checkout repo
