@@ -70,7 +70,7 @@ jobs:
         run: terraform destroy -auto-approve
 
   ansible:
-    runs-on: self-hosted
+    runs-on: [self-hosted, terraform-runner]
     needs: terraform
 
     if: github.event.inputs.action == 'apply'
