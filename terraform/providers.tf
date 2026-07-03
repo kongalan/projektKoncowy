@@ -7,8 +7,9 @@ terraform {
   }
 }
 
+
 provider "proxmox" {
-  endpoint  = "https://192.168.137.2:8006/"
-  api_token = "terraform@pve!terraform=${var.pm_token_secret}"
+  endpoint  = var.pm_api_url
+  api_token = "${var.pm_token_id}=${var.pm_token_secret}"
   insecure  = true
 }
