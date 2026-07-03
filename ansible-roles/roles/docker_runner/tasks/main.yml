@@ -22,6 +22,11 @@
     groups: docker
     append: true
 
+- name: Restart Docker after group change
+  systemd:
+    name: docker
+    state: restarted
+
 - name: Check Docker version
   command: docker --version
   register: docker_version

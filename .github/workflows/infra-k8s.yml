@@ -1,0 +1,82 @@
+name: Deploy Kubernetes Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action"
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+jobs:
+  terraform:
+    runs-on: self-hosted
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars <<EOF
+          pm_api_url          = "${{ secrets.PM_API_URL }}"
+          pm_api_token_id     = "${{ secrets.PM_API_TOKEN_ID }}"
+          pm_api_token_secret = "${{ secrets.PM_API_TOKEN_SECRET }}"
+          ssh_key             = "${{ secrets.SSH_PUBLIC_KEY }}"
+          EOF
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        if: github.event.inputs.action == 'plan'
+        run: terraform plan
+
+      - name: Terraform apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve
+
+      - name: Terraform destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+
+  ansible:
+    runs-on: self-hosted
+    needs: terraform
+
+    if: github.event.inputs.action == 'apply'
+
+    defaults:
+      run:
+        working-directory: ansible
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Start ssh-agent
+        run: |
+          eval "$(ssh-agent -s)"
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/id_rsa
+          chmod 600 /tmp/id_rsa
+          ssh-add /tmp/id_rsa
+
+      - name: Test Ansible cnnection
+        run: |
+          ansible -i inventory.ini k8s -m ping
+
+      - name: Install Kubernetes cluster
+        run: |
+          ansible-playbook -i inventory.ini site.yml
