@@ -22,6 +22,16 @@ jobs:
         working-directory: terraform
 
     steps:
+
+      - name: Debug runner
+        run: |
+            hostname
+            whoami
+            pwd
+            echo "$PATH"
+            which terraform || true
+            terraform version || true
+
       - name: Checkout repo
         uses: actions/checkout@v4 
 
