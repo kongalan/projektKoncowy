@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, kubernetes-k8s]
 
     steps:
       - name: Checkout repository
