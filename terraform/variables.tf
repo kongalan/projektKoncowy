@@ -7,8 +7,7 @@ variable "pm_token_id" {
   sensitive = true
 }
 variable "pm_token_secret" {
-  sensitive = true
-  sensitive = true
+  sensitive = true  
 }
 
 variable "ssh_key" {
