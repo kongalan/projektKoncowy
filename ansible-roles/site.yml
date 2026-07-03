@@ -27,6 +27,12 @@
   roles:
     - ingress-nginx
 
+- name: Install Docker for GitHub self-hosted runner
+  hosts: master
+  become: true
+  roles:
+    - docker_runner
+
 - name: Join workers
   hosts: workers
   become: true

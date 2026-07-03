@@ -1,0 +1,32 @@
+---
+# tasks file for docker_runner
+- name: Update apt cache
+  apt:
+    update_cache: true
+
+- name: Install Docker
+  apt:
+    name:
+      - docker.io
+    state: present
+
+- name: Enable and start Docker
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add ubuntu user to docker group
+  user:
+    name: ubuntu
+    groups: docker
+    append: true
+
+- name: Check Docker version
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Show Docker version
+  debug:
+    var: docker_version.stdout
