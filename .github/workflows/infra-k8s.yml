@@ -39,8 +39,8 @@ jobs:
       - name: Create terraform.tfvars
         run: |
           cat > terraform.tfvars <<EOF
-          pm_api_url          = "${{ secrets.PROXMOX_API_URL }}"
-          pm_api_token_id     = "${{ secrets.PROXMOX_API_TOKEN_ID }}"
+          pm_api_url          = "${{ secrets.PM_API_URL }}"
+          pm_api_token_id     = "${{ secrets.PM_API_TOKEN_ID }}"
           pm_api_token_secret = "${{ secrets.PROXMOX_API_TOKEN_SECRET }}"
           ssh_key             = "${{ secrets.SSH_PUBLIC_KEY }}"
           EOF
