@@ -38,3 +38,9 @@
   become: true
   roles:
     - worker
+
+- name: Install Grafana Prometheus EFK
+  hosts: monitoring
+  become: true
+  roles:
+    - observability

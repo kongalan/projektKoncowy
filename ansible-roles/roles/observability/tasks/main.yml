@@ -1,0 +1,42 @@
+---
+# tasks file for observability
+- name: Install packages
+  apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+      - python3-docker
+    state: present
+    update_cache: true
+
+- name: Enable Docker
+  service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Create observability directory
+  file:
+    path: /opt/observability
+    state: directory
+    mode: '0755'
+
+- name: Copy docker compose
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/observability/docker-compose.yml
+
+- name: Copy prometheus config
+  template:
+    src: prometheus.yml.j2
+    dest: /opt/observability/prometheus.yml
+
+- name: Copy fluent-bit config
+  template:
+    src: fluent-bit.conf.j2
+    dest: /opt/observability/fluent-bit.conf
+
+- name: Start stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/observability
+    state: present

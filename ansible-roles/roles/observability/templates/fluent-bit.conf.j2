@@ -1,0 +1,17 @@
+[SERVICE]
+    Flush        5
+    Log_Level    info
+
+[INPUT]
+    Name         tail
+    Path         /var/log/syslog
+    Tag          system.log
+    Refresh_Interval 5
+
+[OUTPUT]
+    Name         es
+    Match        *
+    Host         elasticsearch
+    Port         9200
+    Index        vm-logs
+    Suppress_Type_Name On
