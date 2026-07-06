@@ -37,13 +37,12 @@ resource "proxmox_virtual_environment_vm" "k8s" {
   started = true
 
   cpu {
-    cores   = 2
-    sockets = 1
+    cores   = each.key == "monitoring" ? 4 : 2
     type    = "host"
   }
 
   memory {
-    dedicated = 2048
+    dedicated = each.key == "monitoring" ? 8192 : 2048
   }
 
   agent {
@@ -53,7 +52,7 @@ resource "proxmox_virtual_environment_vm" "k8s" {
   disk {
     datastore_id = "local-lvm"
     interface    = "scsi0"
-    size         = 30
+    size         = each.key == "monitoring" ? 60 : 30
     iothread     = true
   }
 
