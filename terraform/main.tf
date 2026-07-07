@@ -33,7 +33,12 @@ resource "proxmox_virtual_environment_vm" "k8s" {
     vm_id = 9000
     full  = true
   }
-
+   
+  lifecycle {
+    ignore_changes = [
+      clone,
+    ]
+  } 
   started = true
 
   cpu {
