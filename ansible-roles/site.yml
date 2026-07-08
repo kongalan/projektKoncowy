@@ -7,7 +7,12 @@
     - containerd
     - kubernetes
    
-
+- name: Install Node Exporter
+  hosts: node_exporter
+  become: true
+  roles:
+    - node_exporter
+    
 - name: Init control-plane
   hosts: master
   become: true
@@ -20,6 +25,13 @@
   become: true
   roles:
     - calico
+
+
+- name: Install kube-state-metrics
+  hosts: master
+  become: true
+  roles:
+    - kube_state_metrics
 
 - name: Install Ingress-nginx
   hosts: master
@@ -44,3 +56,22 @@
   become: true
   roles:
     - observability
+
+
+- name: Configure Grafana dashboards
+  hosts: monitoring-vm
+  become: true
+
+  vars_files:
+    - vars/main.yml
+
+  roles:
+    - observability
+
+- name: Install Proxmox exporter
+  hosts: monitoring
+  become: true
+  vars_files:
+    - vars/main.yml
+  roles:
+    - proxmox_exporter

@@ -1,0 +1,28 @@
+---
+- name: Install Helm if missing
+  shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+
+- name: Add Prometheus Community Helm repo
+  command: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  changed_when: false
+
+- name: Update Helm repos
+  command: helm repo update
+  changed_when: false
+
+- name: Install kube-state-metrics
+  command: >
+    helm upgrade --install kube-state-metrics prometheus-community/kube-state-metrics
+    --namespace kube-system
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Expose kube-state-metrics as NodePort
+  command: >
+    kubectl patch svc kube-state-metrics -n kube-system
+    -p '{"spec":{"type":"NodePort","ports":[{"name":"http","port":8080,"targetPort":8080,"nodePort":30080}]}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf

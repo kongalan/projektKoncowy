@@ -4,7 +4,7 @@
   apt:
     name:
       - docker.io
-      - docker-compose-plugin
+      - docker-compose-v2
       - python3-docker
     state: present
     update_cache: true
@@ -40,3 +40,73 @@
   community.docker.docker_compose_v2:
     project_src: /opt/observability
     state: present
+
+
+- name: Create dashboard folder
+  uri:
+    url: "{{ grafana_url }}/api/folders"
+    method: POST
+    user: "{{ grafana_user }}"
+    password: "{{ grafana_password }}"
+    force_basic_auth: true
+    body_format: json
+    status_code: [200, 409, 412]
+    body:
+      uid: "observability"
+      title: "Observability"
+
+- name: Get dashboard JSON from grafana.com
+  uri:
+    url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/{{ item.revision }}/download"
+    method: GET
+    return_content: true
+  loop: "{{ grafana_dashboards }}"
+  register: downloaded_dashboards
+
+- name: Import dashboards to Grafana
+  uri:
+    url: "{{ grafana_url }}/api/dashboards/db"
+    method: POST
+    user: "{{ grafana_user }}"
+    password: "{{ grafana_password }}"
+    force_basic_auth: true
+    body_format: json
+    status_code: [200, 202]
+    body:
+      dashboard: "{{ item.content | from_json }}"
+      overwrite: true
+      folderUid: "observability"
+      inputs:
+        - name: "DS_PROMETHEUS"
+          type: "datasource"
+          pluginId: "prometheus"
+          value: "prometheus"
+        - name: "datasource"
+          type: "datasource"
+          pluginId: "prometheus"
+          value: "prometheus"
+  loop: "{{ downloaded_dashboards.results }}"
+
+
+- name: Import Starttoaster Proxmox dashboard
+  uri:
+    url: "{{ grafana_url }}/api/dashboards/db"
+    method: POST
+    user: "{{ grafana_user }}"
+    password: "{{ grafana_password }}"
+    force_basic_auth: true
+    body_format: json
+    status_code: [200, 202]
+    body:
+      dashboard: "{{ lookup('file', 'dashboards/starttoaster-proxmox.json') | from_json }}"
+      overwrite: true
+      folderUid: "observability"
+      inputs:
+        - name: "DS_PROMETHEUS"
+          type: "datasource"
+          pluginId: "prometheus"
+          value: "prometheus"
+        - name: "datasource"
+          type: "datasource"
+          pluginId: "prometheus"
+          value: "prometheus"

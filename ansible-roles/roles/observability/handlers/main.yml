@@ -1,2 +1,8 @@
 ---
 # handlers file for observability
+- name: Restart Prometheus
+  community.docker.docker_compose_v2:
+    project_src: /opt/observability
+    state: restarted
+    services:
+      - prometheus

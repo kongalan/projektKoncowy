@@ -1,0 +1,7 @@
+---
+# vars file for roles/proxmox_exporter
+proxmox_host: "192.168.137.2"
+proxmox_exporter_port: 9221
+
+proxmox_token_id: "terraform@pve!terraform"
+proxmox_token_secret: "327010f8-ac9e-44b1-bbbf-a1df9f634d10"

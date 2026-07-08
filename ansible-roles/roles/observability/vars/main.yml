@@ -1,2 +1,30 @@
 ---
 # vars file for observability
+grafana_url: "http://192.168.137.13:3000"
+grafana_user: "admin"
+grafana_password: "KurkaWodna1"
+
+grafana_dashboards:
+  - id: 1860
+    revision: 41
+    name: node-exporter-full
+
+  - id: 15757
+    revision: 37
+    name: kubernetes-views-global
+
+  - id: 15759
+    revision: 31
+    name: kubernetes-views-nodes
+
+  - id: 15760
+    revision: 28
+    name: kubernetes-views-pods
+
+  - id: 15758
+    revision: 32
+    name: kubernetes-views-namespaces
+
+  - id: 24550
+    revision: 1
+    name: proxmox-pve-exporter
