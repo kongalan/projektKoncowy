@@ -6,6 +6,8 @@ on:
     paths:
       - app/**
       - kubernetes/**
+      - terraform/**
+      - ansible-roles/**
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
@@ -17,7 +19,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/hello-web
 
 jobs:
-  validate:
+  validate-terraform-ansible:
     runs-on: [self-hosted, terraform-runner]
 
     steps:
@@ -37,11 +39,44 @@ jobs:
       - name: Ansible syntax check
         working-directory: ansible-roles
         run: ansible-playbook -i inventory.ini site.yml --syntax-check
+  validate-kubernetes:
+    needs: validate-terraform-ansible
+    runs-on: [self-hosted, kubernetes-k8s]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Kubernetes manifest validation
         run: |
           kubectl apply --dry-run=client -f kubernetes/
       
+      
+
+
+
+  build-and-deploy:
+    needs: validate-kubernetes
+    runs-on: [self-hosted, kubernetes-k8s]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Docker login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker image
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }} ./app
+
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/hello-app hello-app=ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }}
+          kubectl rollout status deployment/hello-app --timeout=120s
+
       - name: Send email notification on success
         if: success()
         uses: dawidd6/action-send-mail@v3
@@ -83,42 +118,3 @@ jobs:
             Autor: ${{ github.actor }}
 
             Sprawdź logi workflow w GitHub Actions.
-
-
-
-  build-and-deploy:
-    needs: validate
-    runs-on: [self-hosted, kubernetes-k8s]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Docker login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build Docker image
-        run: |
-          docker build -t ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }} ./app
-
-      - name: Push Docker image
-        run: |
-          docker push ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }}
-
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl set image deployment/hello-app hello-app=ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }}
-          kubectl rollout status deployment/hello-app --timeout=120s
-
-      - name: Notify Discord on success
-        if: success()
-        run: |
-          curl -H "Content-Type: application/json" \
-            -d "{\"content\":\"CI/CD zakończone sukcesem\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
-
-      - name: Notify Discord on failure
-        if: failure()
-        run: |
-          curl -H "Content-Type: application/json" \
-            -d "{\"content\":\"CI/CD zakończone błędem\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
