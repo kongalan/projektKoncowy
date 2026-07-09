@@ -17,29 +17,108 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/hello-web
 
 jobs:
+  validate:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Terraform format check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validate
+        working-directory: terraform
+        run: |
+          terraform init
+          terraform validate
+
+      - name: Ansible syntax check
+        working-directory: ansible-roles
+        run: ansible-playbook -i inventory.ini site.yml --syntax-check
+
+      - name: Kubernetes manifest validation
+        run: |
+          kubectl apply --dry-run=client -f kubernetes/
+      
+      - name: Send email notification on success
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Deployment OK - projektKoncowy"
+          to: ${{ secrets.NOTIFY_EMAIL_TO }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          body: |
+            Deployment zakończony sukcesem.
+
+            Repozytorium: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Autor: ${{ github.actor }}
+
+      - name: Send email notification on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Deployment FAILED - projektKoncowy"
+          to: ${{ secrets.NOTIFY_EMAIL_TO }}
+          from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
+          body: |
+            Deployment zakończył się błędem.
+
+            Repozytorium: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Autor: ${{ github.actor }}
+
+            Sprawdź logi workflow w GitHub Actions.
+
+
+
   build-and-deploy:
+    needs: validate
     runs-on: [self-hosted, kubernetes-k8s]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Docker login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build image
+      - name: Build Docker image
         run: |
-          docker build \
-            -t "$IMAGE_NAME:${{ github.sha }}" \
-            -t "$IMAGE_NAME:latest" \
-            ./app
+          docker build -t ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }} ./app
 
-      - name: Push image
+      - name: Push Docker image
         run: |
-          docker push "$IMAGE_NAME:${{ github.sha }}"
-          docker push "$IMAGE_NAME:latest"
+          docker push ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }}
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f kubernetes/
-          kubectl set image deployment/hello-web hello-web="$IMAGE_NAME:${{ github.sha }}"
-          kubectl rollout status deployment/hello-web --timeout=180s
+          kubectl set image deployment/hello-app hello-app=ghcr.io/${{ github.repository }}/hello-app:${{ github.sha }}
+          kubectl rollout status deployment/hello-app --timeout=120s
+
+      - name: Notify Discord on success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\":\"CI/CD zakończone sukcesem\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Notify Discord on failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\":\"CI/CD zakończone błędem\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
