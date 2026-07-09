@@ -13,6 +13,27 @@
     src: https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
     kubeconfig: /etc/kubernetes/admin.conf
 
+- name: Set ingress-nginx controller replicas
+  kubernetes.core.k8s_scale:
+    api_version: apps/v1
+    kind: Deployment
+    name: ingress-nginx-controller
+    namespace: ingress-nginx
+    replicas: 2
+    kubeconfig: /etc/kubernetes/admin.conf
+
+- name: Set ingress-nginx externalTrafficPolicy to Cluster
+  kubernetes.core.k8s:
+    state: patched
+    kind: Service
+    api_version: v1
+    name: ingress-nginx-controller
+    namespace: ingress-nginx
+    kubeconfig: /etc/kubernetes/admin.conf
+    definition:
+      spec:
+        externalTrafficPolicy: Cluster
+
 - name: Wait for ingress-nginx controller
   kubernetes.core.k8s_info:
     kind: Pod
