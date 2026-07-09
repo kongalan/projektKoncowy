@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/hello-web
+  IMAGE_NAME: ghcr.io/kongalan/hello-web
 
 jobs:
   validate-terraform-ansible:
@@ -65,18 +65,16 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build Docker image
-        run: |
-          docker build -t ghcr.io/${{ github.repository }}/hello-web:${{ github.sha }} ./app
+        run: docker build -t $IMAGE_NAME:${{ github.sha }} ./app
 
       - name: Push Docker image
-        run: |
-          docker push ghcr.io/${{ github.repository }}/hello-web:${{ github.sha }}
+        run: docker push $IMAGE_NAME:${{ github.sha }}
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl set image deployment/hello-web hello-web=ghcr.io/${{ github.repository }}/hello-web:${{ github.sha }}
-          kubectl rollout status deployment/hello-web --timeout=120s
-
+          kubectl set image deployment/hello-web hello-web=$IMAGE_NAME:${{ github.sha }} -n default
+          kubectl rollout status deployment/hello-web -n default --timeout=300s
+          
       - name: Send email notification on success
         if: success()
         uses: dawidd6/action-send-mail@v3
