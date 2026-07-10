@@ -41,7 +41,7 @@ jobs:
         run: ansible-playbook -i inventory.ini site.yml --syntax-check
   validate-kubernetes:
     needs: validate-terraform-ansible
-    runs-on: [self-hosted, kubernetes-k8s]
+    runs-on: [self-hosted, terraform-runner]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
