@@ -33,7 +33,7 @@
   roles:
     - kube_state_metrics
 
-- name: Install Ingress-nginx
+- name: Install Ingress-nginx #do zmiany nie wspierany
   hosts: master
   become: true
   roles:
