@@ -56,7 +56,7 @@ jobs:
 
   build-and-deploy:
     needs: validate-kubernetes
-    runs-on: [self-hosted,  terraform-runner]
+    runs-on: [self-hosted,  kubernetes-k8s]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
