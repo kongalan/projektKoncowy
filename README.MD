@@ -112,3 +112,7 @@ Po wykonaniu roli `observability` usługi są dostępne na VM `monitoring-vm`:
 - Kibana: `http://192.168.137.13:5601`.
 
 Szczegóły są w `docs/OPERATIONS.md`.
+
+curl -H "Host: hello.local" http://192.168.137.11:30255   - worker1
+
+http://hello.local:30255 - po dodaniu do hosts 192.168.137.11    hello.local

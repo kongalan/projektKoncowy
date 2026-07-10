@@ -13,11 +13,3 @@
 | Dokumentacja | README + dokumenty w `docs/` | Do dodania |
 | Bezpieczeństwo sekretów | `.gitignore` ignoruje tfvars/tfstate, ale pliki stanu i tfvars są już widoczne w repo | Wymaga poprawy historii Git |
 
-## Najważniejsze braki do uzupełnienia
-
-1. Zmienić `REDME.MD` na standardowy `README.md` i rozbudować dokumentację.
-2. Usunąć z repozytorium `terraform.tfvars`, `terraform.tfstate`, `terraform.tfstate.backup` i `.venv`.
-3. Dodać `terraform/terraform.tfvars.example` bez sekretów.
-4. Dodać dokumentację architektury i procedur operacyjnych.
-5. Uporządkować `site.yml`, bo rola `observability` występuje dwa razy — instalacja stacku i import dashboardów powinny być rozdzielone nazwami albo tagami.
-6. Dodać readiness/liveness probes oraz resource requests/limits w manifestach Kubernetes.

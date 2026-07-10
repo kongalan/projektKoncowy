@@ -7,3 +7,5 @@ secrets/
 *.tfstate
 *.tfstate.*
 .terraform/
+terraform/terraform.tfstate*
+terraform/terraform.tfvars
