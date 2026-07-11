@@ -1,0 +1,60 @@
+deployment:
+  replicas: 1
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+  name: traefik
+
+providers:
+  kubernetesIngress:
+    enabled: true
+    publishedService:
+      enabled: true
+
+  kubernetesCRD:
+    enabled: true
+
+service:
+  enabled: true
+  spec:
+    type: NodePort
+
+ports:
+  web:
+    port: 8000
+    exposedPort: 80
+    expose:
+      default: true
+    nodePort: {{ traefik_http_nodeport }}
+
+  websecure:
+    port: 8443
+    exposedPort: 443
+    expose:
+      default: true
+    nodePort: {{ traefik_https_nodeport }}
+
+  traefik:
+    port: 8080
+    expose:
+      default: {{ traefik_dashboard_enabled | bool | lower }}
+    nodePort: {{ traefik_dashboard_nodeport }}
+
+api:
+  dashboard: {{ traefik_dashboard_enabled | bool | lower }}
+  insecure: {{ traefik_dashboard_enabled | bool | lower }}
+
+log:
+  level: INFO
+
+accessLog: {}
+
+metrics:
+  prometheus:
+    enabled: true
+    entryPoint: metrics
+
+additionalArguments:
+  - "--ping=true"
+  - "--providers.kubernetesingress.ingressclass=traefik"

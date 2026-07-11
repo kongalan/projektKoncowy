@@ -1,0 +1,14 @@
+---
+# defaults file for roles/traefik
+traefik_namespace: traefik
+traefik_release_name: traefik
+traefik_chart_repo_name: traefik
+traefik_chart_repo_url: https://traefik.github.io/charts
+
+traefik_service_type: NodePort
+
+traefik_http_nodeport: 30255
+traefik_https_nodeport: 30443
+
+traefik_dashboard_enabled: true
+traefik_dashboard_nodeport: 30900

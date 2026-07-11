@@ -33,11 +33,13 @@
   roles:
     - kube_state_metrics
 
-- name: Install Ingress-nginx #do zmiany nie wspierany
+- name: Install Traefik ingress controller
   hosts: master
   become: true
   roles:
-    - ingress-nginx
+    - role: traefik
+      tags:
+        - traefik
 
 - name: Install Docker for GitHub self-hosted runner
   hosts: master

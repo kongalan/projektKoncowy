@@ -1,14 +1,17 @@
+
 name: Build and Deploy to Kubernetes
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
     paths:
-      - app/**
-      - kubernetes/**
-      - terraform/**
-      - ansible-roles/**
-      - .github/workflows/deploy.yml
+      - "app/**"
+      - "kubernetes/**"
+      - "terraform/**"
+      - "ansible-roles/**"
+      - ".github/workflows/deploy.yml"
+
   workflow_dispatch:
 
 permissions:
@@ -17,10 +20,20 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/kongalan/hello-web
+  KUBERNETES_NAMESPACE: default
+  DEPLOYMENT_NAME: hello-web
+  CONTAINER_NAME: hello-web
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-terraform-ansible:
-    runs-on: [self-hosted, terraform-runner]
+    name: Validate Terraform and Ansible
+    runs-on:
+      - self-hosted
+      - terraform-runner
 
     steps:
       - name: Checkout repository
@@ -30,53 +43,174 @@ jobs:
         working-directory: terraform
         run: terraform fmt -check -recursive
 
+      - name: Terraform initialize
+        working-directory: terraform
+        run: terraform init -backend=false
+
       - name: Terraform validate
         working-directory: terraform
-        run: |
-          terraform init
-          terraform validate
+        run: terraform validate
 
       - name: Ansible syntax check
         working-directory: ansible-roles
         run: ansible-playbook -i inventory.ini site.yml --syntax-check
+
   validate-kubernetes:
-    needs: validate-terraform-ansible
-    runs-on: [self-hosted, kubernetes-k8s]
+    name: Validate Kubernetes manifests
+    needs:
+      - validate-terraform-ansible
+
+    runs-on:
+      - self-hosted
+      - kubernetes-k8s
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Kubernetes manifest validation
-        run: |
-          kubectl apply --dry-run=client -f kubernetes/
-      
-      
-
-
+      - name: Validate Kubernetes manifests
+        run: kubectl apply --dry-run=client -f kubernetes/
 
   build-and-deploy:
-    needs: validate-kubernetes
-    runs-on: [self-hosted,  kubernetes-k8s]
+    name: Build and deploy application
+    needs:
+      - validate-kubernetes
+
+    runs-on:
+      - self-hosted
+      - kubernetes-k8s
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare image variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE_REPOSITORY=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+
+          echo "IMAGE_REPOSITORY=${IMAGE_REPOSITORY}" >> "${GITHUB_ENV}"
+          echo "IMAGE_TAG=${GITHUB_SHA}" >> "${GITHUB_ENV}"
+
+          echo "Image: ${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+
       - name: Docker login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io \
+                --username "${{ github.actor }}" \
+                --password-stdin
 
       - name: Build Docker image
-        run: docker build -t $IMAGE_NAME:${{ github.sha }} ./app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --tag "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
+            --tag "${IMAGE_REPOSITORY}:latest" \
+            ./app
 
       - name: Push Docker image
-        run: docker push $IMAGE_NAME:${{ github.sha }}
-
-      - name: Deploy to Kubernetes
+        shell: bash
         run: |
-          kubectl set image deployment/hello-web hello-web=$IMAGE_NAME:${{ github.sha }} -n default
-          kubectl rollout status deployment/hello-web -n default --timeout=300s
-          
+          set -euo pipefail
+
+          docker push "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+          docker push "${IMAGE_REPOSITORY}:latest"
+
+      - name: Apply Kubernetes manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          kubectl apply \
+            --namespace "${KUBERNETES_NAMESPACE}" \
+            -f kubernetes/
+
+      - name: Deploy commit image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DEPLOY_IMAGE="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "Deploying image: ${DEPLOY_IMAGE}"
+
+          kubectl set image \
+            "deployment/${DEPLOYMENT_NAME}" \
+            "${CONTAINER_NAME}=${DEPLOY_IMAGE}" \
+            --namespace "${KUBERNETES_NAMESPACE}"
+
+      - name: Wait for deployment rollout
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          kubectl rollout status \
+            "deployment/${DEPLOYMENT_NAME}" \
+            --namespace "${KUBERNETES_NAMESPACE}" \
+            --timeout=300s
+
+      - name: Verify deployed image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPECTED_IMAGE="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+
+          DEPLOYED_IMAGE=$(kubectl get deployment "${DEPLOYMENT_NAME}" \
+            --namespace "${KUBERNETES_NAMESPACE}" \
+            --output="jsonpath={.spec.template.spec.containers[?(@.name=='${CONTAINER_NAME}')].image}")
+
+          echo "Expected image: ${EXPECTED_IMAGE}"
+          echo "Deployed image: ${DEPLOYED_IMAGE}"
+
+          if [ "${DEPLOYED_IMAGE}" != "${EXPECTED_IMAGE}" ]; then
+            echo "Incorrect image deployed."
+            exit 1
+          fi
+
+      - name: Show deployment status
+        if: always()
+        shell: bash
+        run: |
+          kubectl get deployment "${DEPLOYMENT_NAME}" \
+            --namespace "${KUBERNETES_NAMESPACE}" \
+            --output=wide || true
+
+          kubectl get pods \
+            --namespace "${KUBERNETES_NAMESPACE}" \
+            --selector="app=hello-web" \
+            --output=wide || true
+
+          kubectl get ingress \
+            --namespace "${KUBERNETES_NAMESPACE}" || true
+
+  notify:
+    name: Send deployment notification
+    if: always()
+
+    needs:
+      - validate-terraform-ansible
+      - validate-kubernetes
+      - build-and-deploy
+
+    runs-on:
+      - self-hosted
+      - kubernetes-k8s
+
+    steps:
       - name: Send email notification on success
-        if: success()
+        if: |
+          needs.validate-terraform-ansible.result == 'success' &&
+          needs.validate-kubernetes.result == 'success' &&
+          needs.build-and-deploy.result == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -95,8 +229,14 @@ jobs:
             Commit: ${{ github.sha }}
             Autor: ${{ github.actor }}
 
+            Obraz:
+            ghcr.io/kongalan/hello-web:${{ github.sha }}
+
       - name: Send email notification on failure
-        if: failure()
+        if: |
+          needs.validate-terraform-ansible.result != 'success' ||
+          needs.validate-kubernetes.result != 'success' ||
+          needs.build-and-deploy.result != 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -108,11 +248,17 @@ jobs:
           to: ${{ secrets.NOTIFY_EMAIL_TO }}
           from: GitHub Actions <${{ secrets.SMTP_USERNAME }}>
           body: |
-            Deployment zakończył się błędem.
+            Pipeline zakończył się błędem.
 
             Repozytorium: ${{ github.repository }}
             Branch: ${{ github.ref_name }}
             Commit: ${{ github.sha }}
             Autor: ${{ github.actor }}
 
+            Wyniki etapów:
+            Terraform i Ansible: ${{ needs.validate-terraform-ansible.result }}
+            Kubernetes: ${{ needs.validate-kubernetes.result }}
+            Build i deployment: ${{ needs.build-and-deploy.result }}
+
             Sprawdź logi workflow w GitHub Actions.
+

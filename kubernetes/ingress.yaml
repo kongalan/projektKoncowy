@@ -1,9 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: hello-web-ingress
+  name: hello-web
+  namespace: default
+  labels:
+    app: hello-web
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
     - host: hello.local
       http:
@@ -12,6 +15,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: hello-web-service
+                name: hello-web
                 port:
                   number: 80
